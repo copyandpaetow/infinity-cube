@@ -1,0 +1,35 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Cube from "../components/Cube.astro";
+---
+
+<script></script>
+
+<Layout title="Infinity cube">
+	<section class="centered">
+		<Cube />
+		<menu>
+			<a href="/all">all cube jokes</a>
+			<a href="#now">enough with the cube jokes</a>
+		</menu>
+	</section>
+</Layout>
+
+<style lang="scss">
+	section {
+		min-height: 80vh;
+	}
+
+	menu {
+		display: grid;
+		gap: var(--space-0);
+		grid-auto-columns: max-content;
+		place-content: center;
+	}
+
+	.centered {
+		display: grid;
+		place-content: center;
+		gap: var(--space-4);
+	}
+</style>

@@ -1,0 +1,283 @@
+---
+import CubeController from "./CubeController.astro";
+
+const vertical = await Astro.glob("./vertical/*.astro");
+const horizontal = await Astro.glob("./horizontal/*.astro");
+const amountOfElements = vertical.length + horizontal.length;
+
+const horizontalPosition: Record<number, string> = {
+	0: "front",
+	1: "right",
+	2: "back",
+	3: "left",
+};
+
+const verticalPosition: Record<number, string> = {
+	0: "top",
+	1: "posterior",
+	2: "bottom",
+	3: "anterior",
+};
+---
+
+<script>
+	import { animateToNewSlide } from "./animateToNewSlide";
+
+	const wrapper = document.querySelector(".cube-wrapper") as HTMLElement;
+	const cube = wrapper.querySelector(".cube") as HTMLElement;
+	const cubeSides = Array.from(cube.children) as HTMLElement[];
+	const horizontalCount = cube.querySelectorAll("[data-direction='horizontal']").length;
+	const verticalCount = cubeSides.length - horizontalCount;
+
+	let inuse = false;
+
+	const onTransitionStart = () => {
+		inuse = true;
+	};
+	const onTransitionEnd = () => {
+		inuse = false;
+	};
+
+	const position = {
+		horizontal: 0,
+		vertical: -1,
+	};
+	const dispatchHashEvent = (
+		oldURL = window.location.origin + window.location.pathname,
+		newURL = window.location.href
+	) => {
+		if (oldURL === newURL) {
+			return;
+		}
+
+		dispatchEvent(
+			new HashChangeEvent("hashchange", {
+				oldURL,
+				newURL,
+			})
+		);
+	};
+
+	const focusFaceWithInteractiveElement = (event: FocusEvent) => {
+		const target = event.target as HTMLElement;
+		const cubeFace = target.closest("[data-position]") as HTMLElement;
+		const cube = cubeFace.closest(".cube") as HTMLElement;
+
+		window.location.href = `#${cubeFace.id}`;
+
+		requestAnimationFrame(() => {
+			target.focus();
+			cube.addEventListener("focusin", focusFaceWithInteractiveElement, { once: true });
+		});
+	};
+
+	const onHashChange = (event: HashChangeEvent) => {
+		const { newURL, oldURL } = event;
+		if (oldURL === newURL) {
+			return;
+		}
+
+		const oldSideElement = document.getElementById(oldURL.split("#")[1]);
+		const newSideElement = document.getElementById(newURL.split("#")[1]);
+
+		animateToNewSlide(cube, oldSideElement, newSideElement);
+	};
+
+	const focusFaceWithArrowKeys = (event: KeyboardEvent) => {
+		if (!event.key.includes("Arrow")) {
+			return;
+		}
+
+		event.preventDefault();
+
+		let nextSideIndex = 0;
+
+		switch (event.key) {
+			case "ArrowRight":
+				position.horizontal = (position.horizontal + 1) % horizontalCount;
+				nextSideIndex = position.horizontal;
+				break;
+			case "ArrowLeft":
+				position.horizontal = (position.horizontal - 1 + horizontalCount) % horizontalCount;
+				nextSideIndex = position.horizontal;
+				break;
+			case "ArrowUp":
+				position.vertical = (position.vertical + 1) % verticalCount;
+				nextSideIndex = horizontalCount + position.vertical;
+				break;
+			case "ArrowDown":
+				if (position.vertical === -1) {
+					//otherwise we will skip the last vertical element initially
+					position.vertical = 0;
+				}
+
+				position.vertical = (position.vertical - 1 + verticalCount) % verticalCount;
+				nextSideIndex = horizontalCount + position.vertical;
+				break;
+			default:
+				return;
+		}
+
+		const nextSide = cubeSides.at(nextSideIndex);
+
+		if (!nextSide || !nextSide.id) {
+			return;
+		}
+
+		window.location.href = `#${nextSide.id}`;
+	};
+
+	let isInitialRun = true;
+
+	const observer = new IntersectionObserver(
+		(entries) => {
+			entries.forEach((entry) => {
+				if (entry.isIntersecting) {
+					cube.addEventListener("focusin", focusFaceWithInteractiveElement, { once: true });
+
+					window.addEventListener("keydown", focusFaceWithArrowKeys);
+					window.addEventListener("hashchange", onHashChange);
+
+					return;
+				}
+				cube.removeEventListener("focusin", focusFaceWithInteractiveElement);
+				window.removeEventListener("keydown", focusFaceWithArrowKeys);
+				window.removeEventListener("hashchange", onHashChange);
+			});
+			if (isInitialRun) {
+				dispatchHashEvent();
+				isInitialRun = false;
+			}
+		},
+		{ threshold: [0.25, 0.5, 0.75, 1] }
+	);
+
+	observer.observe(wrapper);
+</script>
+
+<div class="cube-wrapper">
+	<div class="scene">
+		<div
+			class="cube"
+			data-active-vertical=""
+			data-active-horizontal=""
+			style={`--length: ${amountOfElements + 1}`}
+		>
+			{
+				horizontal.map((component, index) => {
+					return (
+						<div
+							data-direction="horizontal"
+							data-position={horizontalPosition[index % 4]}
+							id={`horizontal-${index}`}
+							style={`--default-z-index: ${amountOfElements - index}`}
+						>
+							<component.default />
+						</div>
+					);
+				})
+			}
+			{
+				vertical.map((component, index, array) => {
+					return (
+						<div
+							data-direction="vertical"
+							data-position={verticalPosition[index % 4]}
+							id={`vertical-${index}`}
+							class={`z-index-${array.length - index}`}
+						>
+							<component.default />
+						</div>
+					);
+				})
+			}
+		</div>
+	</div>
+
+	<CubeController />
+</div>
+
+<style lang="scss">
+	.cube-wrapper {
+		--width: clamp(150px, 25vw, 300px);
+		--half-width: calc((var(--width) / 2));
+
+		width: calc(var(--width) * 1.5);
+		aspect-ratio: 1;
+		display: grid;
+		grid-template-rows: 1fr max-content;
+		gap: var(--space-3);
+	}
+
+	.scene {
+		width: var(--width);
+		aspect-ratio: 1;
+		border: 1px solid #ccc;
+		perspective: calc(var(--width) * 5);
+		margin: var(--space-2);
+		place-self: center;
+	}
+
+	.cube {
+		width: var(--width);
+		aspect-ratio: 1;
+		position: relative;
+		transform-style: preserve-3d;
+		transform: translateZ(calc(var(--half-width) * -1)) rotateX(var(--rotateX, 0))
+			rotateY(var(--rotateY, 0)) rotateZ(var(--rotateZ, 0));
+		transition: transform 1s;
+	}
+
+	.cube > div {
+		--background-color: var(--red);
+		--layout-x: 0deg;
+		--layout-y: 0deg;
+
+		position: absolute;
+		inset: 0;
+		display: grid;
+		place-content: center;
+		background-color: var(--background-color);
+		transform: rotateX(var(--layout-x)) rotateY(var(--layout-y)) translateZ(var(--half-width));
+		pointer-events: none;
+		z-index: var(--z-index, var(--default-z-index));
+
+		&:target {
+			--z-index: var(--length, 100);
+			pointer-events: initial;
+		}
+
+		&[data-position="front"] {
+			--background-color: var(--red);
+			--layout-y: 0deg;
+		}
+		&[data-position="back"] {
+			--background-color: var(--green);
+			--layout-y: 180deg;
+		}
+		&[data-position="right"] {
+			--background-color: var(--yellow);
+			--layout-y: 90deg;
+		}
+		&[data-position="left"] {
+			--background-color: var(--cyan);
+			--layout-y: -90deg;
+		}
+		&[data-position="anterior"] {
+			--background-color: var(--blue);
+			--layout-y: 0deg;
+		}
+		&[data-position="top"] {
+			--background-color: var(--orange);
+			--layout-x: 90deg;
+		}
+		&[data-position="posterior"] {
+			--background-color: var(--purple);
+			--layout-x: -180deg;
+		}
+		&[data-position="bottom"] {
+			--background-color: var(--magenta);
+			--layout-x: -90deg;
+		}
+	}
+</style>

@@ -1,0 +1,61 @@
+---
+import "../styles/vars.css";
+import "../styles/resets.css";
+import "../styles/utility.css";
+
+export interface Props {
+	title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="description" content="an infinity cube" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+	</head>
+	<body>
+		<main>
+			<slot />
+		</main>
+		<footer></footer>
+	</body>
+</html>
+
+<style is:global lang="scss">
+	html {
+		scroll-padding-top: 50vh;
+	}
+
+	body {
+		font-family: var(--font-base);
+		font-size: var(--size-step-0);
+		background: var(--grey-10);
+		color: var(--grey-90);
+		padding-block: var(--gutter);
+	}
+
+	:is(h1, h2, h3) {
+		font-weight: 400;
+		word-spacing: -0.3ch;
+		max-width: 30ch;
+	}
+
+	h1 {
+		font-size: var(--font-4);
+	}
+
+	h2 {
+		font-size: var(--font-3);
+	}
+
+	h3 {
+		font-size: var(--font-2);
+	}
+</style>
